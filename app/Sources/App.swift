@@ -184,7 +184,6 @@ struct MenuBarView: View {
                 Spacer()
                 Button { store.pauseAll() } label: { Image(systemName: "pause.fill") }.help("Pause all")
                 Button { store.resumeAll() } label: { Image(systemName: "play.fill") }.help("Resume all")
-                SettingsLink { Image(systemName: "gearshape") }.help("Settings")
                 Button { NSApp.terminate(nil) } label: { Image(systemName: "power") }.help("Quit")
             }
         }
