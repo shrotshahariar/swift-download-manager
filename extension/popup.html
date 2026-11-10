@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Swift DM</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#f6f7fb; --card:#ffffff; --panel:#eef0f5; --border:rgba(15,23,42,.08); --text:#14161c; --muted:#6b7280;
+    --blue:#4085ff; --violet:#945cff; --accent:linear-gradient(90deg,var(--blue),var(--violet));
+    --ok:#21c47a; --warn:#ff9f1c; --err:#ef4444;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#121419; --card:#1b1e25; --panel:#242832; --border:rgba(255,255,255,.08); --text:#eceef3; --muted:#9aa1ad; }
+  }
+  * { box-sizing: border-box; }
+  body { width: 400px; margin: 0; font: 13px/1.4 -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  /* Header with live speed */
+  .hero { margin: 12px 12px 8px; padding: 12px 14px 10px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .hero::before { content: ""; position: absolute; inset: 0; border-radius: 16px; padding: 1px; background: linear-gradient(135deg, rgba(64,133,255,.5), rgba(148,92,255,.2));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
+  .hero-top { display: flex; align-items: center; gap: 8px; }
+  .hero-top img { width: 20px; height: 20px; }
+  .brand { font-weight: 700; font-size: 14px; }
+  #status { margin-left: auto; font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(33,196,122,.18); } .dot.err { background: var(--err); }
+  .icon-btn { border: none; background: var(--panel); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); font-size: 12px; padding: 0; flex: none; }
+  .icon-btn:hover { color: var(--text); filter: brightness(.96); }
+  .speed-row { display: flex; align-items: flex-end; gap: 12px; margin-top: 8px; }
+  .speed { font: 700 26px/1 ui-rounded, -apple-system, system-ui; background: var(--accent); -webkit-background-clip: text; background-clip: text; color: transparent; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .speed-sub { font-size: 11px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  #graph { flex: 1; height: 44px; }
+  .stats { display: flex; gap: 6px; margin-top: 10px; }
+  .stat { flex: 1; text-align: center; border-radius: 10px; padding: 5px 0; }
+  .stat b { display: block; font: 700 16px/1.1 ui-rounded, -apple-system, system-ui; }
+  .stat span { font-size: 10px; font-weight: 600; color: var(--muted); }
+  .stat.a { background: rgba(64,133,255,.12); color: var(--blue); }
+  .stat.q { background: rgba(255,159,28,.13); color: var(--warn); }
+  .stat.d { background: rgba(33,196,122,.13); color: var(--ok); }
+
+  /* Segmented tabs */
+  nav { display: flex; margin: 0 12px; padding: 3px; background: var(--panel); border-radius: 10px; }
+  nav button { flex: 1; border: none; background: none; padding: 5px 0; border-radius: 8px; color: var(--muted); font-weight: 600; font-size: 12px; }
+  nav button.active { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  nav .count { font-size: 10.5px; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 5px; margin-left: 3px; }
+  nav .count:empty { display: none; }
+
+  .view { padding: 10px 12px 12px; max-height: 380px; overflow-y: auto; }
+  .view[hidden] { display: none; }
+
+  .setup { padding: 12px; border-radius: 12px; margin-bottom: 10px; background: var(--card); border: 1px solid var(--blue); }
+  .setup p { margin: 0 0 8px; }
+
+  .add { display: flex; gap: 6px; }
+  input[type=text], input[type=password], input[type=number], textarea {
+    width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); color: var(--text); font: inherit; outline: none; }
+  input:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(64,133,255,.15); }
+  .primary { border: none; border-radius: 9px; padding: 7px 14px; background: var(--accent); color: #fff; font-weight: 700; white-space: nowrap; }
+  .primary:disabled { opacity: .45; cursor: default; }
+  .msg { font-size: 12px; min-height: 16px; color: var(--muted); margin: 4px 2px; }
+  .msg.err { color: var(--err); }
+
+  /* Cards */
+  .card { display: grid; grid-template-columns: 36px 1fr auto; gap: 0 10px; align-items: center; padding: 10px; margin-bottom: 8px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 13px; }
+  .card:hover { border-color: rgba(64,133,255,.35); }
+  .kind { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: #fff; font: 800 9.5px/1 -apple-system, system-ui; letter-spacing: .02em; text-transform: uppercase; }
+  .body { min-width: 0; }
+  .line1 { display: flex; align-items: center; gap: 6px; }
+  .n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 650; flex: 1; }
+  .pill { font: 700 10px/1 ui-rounded, -apple-system, system-ui; padding: 3px 7px; border-radius: 999px; white-space: nowrap; }
+  .bar { height: 5px; background: var(--panel); border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
+  .bar div { height: 100%; border-radius: 3px; background: var(--accent); transition: width .5s ease; }
+  .m { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; justify-content: space-between; gap: 8px; }
+  .card.error .m { color: var(--err); }
+  .acts { display: flex; gap: 4px; opacity: .45; transition: opacity .15s; }
+  .card:hover .acts { opacity: 1; }
+  .section-title { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 2px 6px; display: flex; align-items: center; }
+  .section-title .link { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 600; }
+  .empty { color: var(--muted); text-align: center; padding: 26px 10px; }
+  .empty .big { font-size: 30px; display: block; margin-bottom: 6px; background: var(--accent); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* This page */
+  .media { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; margin-bottom: 6px;
+    background: var(--card); border: 1px solid var(--border); border-radius: 11px; cursor: pointer; }
+  .media .n { font-weight: 600; }
+  .media .s { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .media.disabled { opacity: .55; cursor: default; }
+  .media img.thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 8px; background: var(--panel); }
+  .media input { accent-color: var(--blue); }
+  .link { border: none; background: none; color: var(--blue); padding: 0; font-size: 12px; }
+  .footer { position: sticky; bottom: -12px; background: var(--bg); padding: 10px 0 2px; display: flex; align-items: center; gap: 8px; }
+  .footer .msg { flex: 1; margin: 0; }
+
+  /* Settings */
+  .switch { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background: var(--card); border: 1px solid var(--border); border-radius: 11px; font-weight: 600; margin-bottom: 6px; }
+  .switch input { accent-color: var(--blue); width: 16px; height: 16px; }
+  label.f { display: block; margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  label.f input, label.f textarea { margin-top: 4px; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+  <section class="hero">
+    <div class="hero-top">
+      <img src="icons/icon48.png" alt="">
+      <span class="brand">Swift DM</span>
+      <span id="status"><span class="dot"></span><span id="statusText">Checking…</span></span>
+      <button id="openApp" class="icon-btn" title="Open Swift DM">↗</button>
+    </div>
+    <div class="speed-row">
+      <div>
+        <div id="speed" class="speed">0 B/s</div>
+        <div id="speedSub" class="speed-sub">↑ 0 B/s</div>
+      </div>
+      <svg id="graph" viewBox="0 0 100 40" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4085ff" stop-opacity=".35"/><stop offset="1" stop-color="#945cff" stop-opacity="0"/></linearGradient>
+          <linearGradient id="gLine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4085ff"/><stop offset="1" stop-color="#945cff"/></linearGradient>
+        </defs>
+        <path id="graphFill" fill="url(#gFill)" d=""/>
+        <path id="graphLine" fill="none" stroke="url(#gLine)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" d=""/>
+      </svg>
+    </div>
+    <div class="stats">
+      <div class="stat a"><b id="nActive">0</b><span>Active</span></div>
+      <div class="stat q"><b id="nQueued">0</b><span>Queued</span></div>
+      <div class="stat d"><b id="nDone">0</b><span>Done</span></div>
+    </div>
+  </section>
+
+  <nav>
+    <button data-view="tasks" class="active">Downloads</button>
+    <button data-view="page">This page<span id="pageCount" class="count"></span></button>
+    <button data-view="settings">Settings</button>
+  </nav>
+
+  <!-- Downloads -->
+  <section id="view-tasks" class="view">
+    <div id="setup" class="setup" hidden>
+      <p>Paste the key from <b>Swift DM → Settings → Browser</b> to connect.</p>
+      <input id="keyQuick" type="password" placeholder="Connection key">
+    </div>
+    <form id="addForm" class="add">
+      <input id="url" type="text" placeholder="Paste a link or magnet…" autocomplete="off">
+      <button class="primary">Add</button>
+    </form>
+    <div id="addMsg" class="msg"></div>
+    <div id="tasks"></div>
+  </section>
+
+  <!-- Media on this page -->
+  <section id="view-page" class="view" hidden>
+    <div id="pageList"></div>
+    <div class="footer">
+      <div id="pageMsg" class="msg"></div>
+      <button id="downloadSelected" class="primary" disabled>Download</button>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section id="view-settings" class="view" hidden>
+    <div class="switch"><span>Catch Chrome downloads</span><input id="enabled" type="checkbox"></div>
+    <div class="switch"><span>Detect media on pages</span><input id="sniff" type="checkbox"></div>
+    <label class="f">Connection key <input id="secret" type="password"></label>
+    <label class="f">Engine port <input id="port" type="number" min="1" max="65535"></label>
+    <label class="f">Only catch files bigger than (MB, 0 = all) <input id="minSizeMB" type="number" min="0"></label>
+    <label class="f">Never catch downloads from these sites
+      <textarea id="exclude" rows="2" placeholder="example.com, drive.google.com"></textarea></label>
+    <div class="hint">Tip: to let Chrome handle one download, turn off “Catch Chrome downloads” first.</div>
+  </section>
+
+  <script src="popup.js"></script>
+</body>
+</html>
