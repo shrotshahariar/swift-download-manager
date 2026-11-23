@@ -10,8 +10,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
-    func applicationWillTerminate(_ notification: Notification) {
-        MainActor.assumeIsolated { Store.shared.shutdown() }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Task { @MainActor in
+            await Store.shared.shutdown()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
     }
 
     /// .torrent files opened from Finder and magnet: links clicked anywhere.
@@ -81,9 +85,12 @@ struct SwiftDMApp: App {
 
     var body: some Scene {
         Window("Swift DM", id: "main") {
-            MainView().environmentObject(store)
+            StandardWindowContent(preferredSize: CGSize(width: 900, height: 680)) {
+                MainView().environmentObject(store)
+            }
         }
-        .defaultSize(width: 980, height: 600)
+        .defaultSize(width: 900, height: 680)
+        .defaultPosition(.center)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("New Download…") { NotificationCenter.default.post(name: .newTask, object: nil) }
@@ -102,7 +109,7 @@ struct SwiftDMApp: App {
             }
         }
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: .constant(true)) {
             MenuBarView().environmentObject(store)
         } label: {
             MenuBarLabel().environmentObject(store)
@@ -110,8 +117,11 @@ struct SwiftDMApp: App {
         .menuBarExtraStyle(.window)
 
         Settings {
-            SettingsView().environmentObject(store)
+            StandardWindowContent(preferredSize: CGSize(width: 560, height: 520)) {
+                SettingsView().environmentObject(store)
+            }
         }
+        .defaultPosition(.center)
     }
 }
 
@@ -124,11 +134,13 @@ extension Notification.Name {
 
 struct MenuBarLabel: View {
     @EnvironmentObject var store: Store
+
     var body: some View {
         if Prefs.menuBarSpeed && store.downSpeed > 0 {
             Text("↓ \(Fmt.compactSpeed(store.downSpeed))").monospacedDigit()
         } else {
-            Image(systemName: store.limitMode ? "tortoise" : "arrow.down.circle")
+            Image(nsImage: store.limitMode ? MenuBarIcon.limited : MenuBarIcon.download)
+                .accessibilityLabel("Swift DM")
         }
     }
 }

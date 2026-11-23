@@ -164,13 +164,33 @@ struct DashboardGrid: Layout {
         return (rects, height)
     }
 
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? 800
-        return CGSize(width: width, height: frames(width: width, subviews: subviews).1)
+    struct Cache {
+        var width: CGFloat = -1
+        var sizes: [WidgetSize] = []
+        var rowHeight: CGFloat = 0
+        var spacing: CGFloat = 0
+        var rects: [CGRect] = []
+        var height: CGFloat = 0
     }
 
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let (rects, _) = frames(width: bounds.width, subviews: subviews)
+    func makeCache(subviews: Subviews) -> Cache { Cache() }
+
+    private func update(width: CGFloat, subviews: Subviews, cache: inout Cache) {
+        let sizes = subviews.map { $0[SpanKey.self] }
+        guard cache.width != width || cache.sizes != sizes || cache.rowHeight != rowHeight || cache.spacing != spacing else { return }
+        let result = frames(width: width, subviews: subviews)
+        cache = Cache(width: width, sizes: sizes, rowHeight: rowHeight, spacing: spacing, rects: result.0, height: result.1)
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) -> CGSize {
+        let width = proposal.width ?? 800
+        update(width: width, subviews: subviews, cache: &cache)
+        return CGSize(width: width, height: cache.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout Cache) {
+        update(width: bounds.width, subviews: subviews, cache: &cache)
+        let rects = cache.rects
         for (sv, r) in zip(subviews, rects) {
             sv.place(at: CGPoint(x: bounds.minX + r.minX, y: bounds.minY + r.minY), anchor: .topLeading,
                      proposal: ProposedViewSize(width: r.width, height: r.height))
@@ -498,7 +518,7 @@ private struct SpeedModeWidget: View {
                         Image(systemName: m.symbol)
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundStyle(on ? .white : m.color)
-                            .frame(width: 40, height: 36)
+                            .frame(minWidth: 0, maxWidth: 40, minHeight: 36, maxHeight: 36)
                             .background(
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                                     .fill(on ? AnyShapeStyle(LinearGradient(colors: [m.color, m.color.opacity(0.75)], startPoint: .top, endPoint: .bottom))

@@ -31,6 +31,11 @@ final class Store: ObservableObject {
     private var knownStatus: [String: String] = [:]
     private var primed = false
     private var failures = 0
+    private var refreshing = false
+    private var engineTransition = false
+    private var shuttingDown = false
+    private var lastHistorySample = Date.distantPast
+    private var trackerTask: Task<Void, Never>?
     private var sleepActivity: NSObjectProtocol?
     private let dockView = DockProgressView()
 
@@ -40,6 +45,7 @@ final class Store: ObservableObject {
     private init() {}
 
     func start() {
+        guard loop == nil else { return }
         engine.start()
         if let e = engine.lastError { errorBanner = e }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
@@ -51,7 +57,7 @@ final class Store: ObservableObject {
                 if first, self.engineOK {
                     first = false
                     if Prefs.autoResumeAll { self.resumeAll() }
-                    await self.syncTrackers(force: false)
+                    self.trackerTask = Task { await self.syncTrackers(force: false) }
                 }
                 let busy = self.tasks.contains { $0.status == "active" }
                 try? await Task.sleep(nanoseconds: busy ? 1_000_000_000 : 2_000_000_000)
@@ -59,10 +65,12 @@ final class Store: ObservableObject {
         }
     }
 
-    func shutdown() {
+    func shutdown() async {
+        shuttingDown = true
         stats.save()
         loop?.cancel()
-        engine.stop()
+        trackerTask?.cancel()
+        await engine.stop()
     }
 
     func tasks(in c: Category) -> [DLTask] { tasks.filter(c.contains) }
@@ -72,6 +80,9 @@ final class Store: ObservableObject {
     // MARK: polling
 
     func refresh() async {
+        guard !refreshing, !engineTransition, !shuttingDown else { return }
+        refreshing = true
+        defer { refreshing = false }
         do {
             var calls: [(String, [Any])] = [
                 ("aria2.tellActive", [DLTask.pollKeys]),
@@ -81,6 +92,11 @@ final class Store: ObservableObject {
             ]
             if let g = peerWatchGid { calls.append(("aria2.getPeers", [g])) }
             let r = try await rpc.multicall(calls)
+            guard !engineTransition, !shuttingDown else { return }
+            guard r.count >= 4 else { throw RPCError(message: "Incomplete engine response") }
+            for result in r.prefix(4) {
+                if let error = result as? RPCError { throw error }
+            }
 
             var list: [DLTask] = []
             for i in 0..<3 { list += ((r[i] as? [[String: Any]]) ?? []).map(DLTask.init) }
@@ -92,11 +108,14 @@ final class Store: ObservableObject {
             if list != tasks { tasks = list }
             if down != downSpeed { downSpeed = down }
             if up != upSpeed { upSpeed = up }
-            if down > 0 || speedHistory.last != 0 {
-                speedHistory = Array((speedHistory + [down]).suffix(60))
-            }
-            if up > 0 || uploadHistory.last != 0 {
-                uploadHistory = Array((uploadHistory + [up]).suffix(60))
+            if Date().timeIntervalSince(lastHistorySample) >= 0.9 {
+                lastHistorySample = Date()
+                if down > 0 || speedHistory.contains(where: { $0 != 0 }) {
+                    speedHistory = Array(speedHistory.dropFirst()) + [down]
+                }
+                if up > 0 || uploadHistory.contains(where: { $0 != 0 }) {
+                    uploadHistory = Array(uploadHistory.dropFirst()) + [up]
+                }
             }
             countTransfer(list)
             if engineVersion.isEmpty, let v = try? await rpc.call("aria2.getVersion") as? [String: Any] {
@@ -112,11 +131,12 @@ final class Store: ObservableObject {
             failures = 0
             updateDockAndSleep()
         } catch {
+            guard !engineTransition, !shuttingDown else { return }
             failures += 1
             if failures > 2 {
                 engineOK = false
                 errorBanner = "The download engine isn't responding — restarting it…"
-                if !engine.isRunning { engine.start() }
+                if failures == 3 { restartEngine() }
             }
         }
     }
@@ -344,22 +364,30 @@ final class Store: ObservableObject {
 
     /// For settings aria2 only reads at launch (ports, key).
     func restartEngine() {
+        guard !engineTransition, !shuttingDown else { return }
+        engineTransition = true
         Task {
             engineOK = false
             _ = try? await rpc.call("aria2.saveSession")
-            engine.restart()
+            await engine.restart()
             rpc = Aria2RPC(port: Prefs.rpcPort, secret: Prefs.secret)
             try? await Task.sleep(nanoseconds: 600_000_000)
+            engineTransition = false
             await refresh()
+            if let error = engine.lastError { errorBanner = error }
         }
     }
 
     func resetSession() {
+        guard !engineTransition, !shuttingDown else { return }
+        engineTransition = true
         Task {
             _ = try? await rpc.call("aria2.forcePauseAll")
-            engine.resetSession()
+            await engine.resetSession()
             try? await Task.sleep(nanoseconds: 600_000_000)
+            engineTransition = false
             await refresh()
+            if let error = engine.lastError { errorBanner = error }
         }
     }
 

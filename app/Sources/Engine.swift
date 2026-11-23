@@ -1,6 +1,7 @@
 import Foundation
 
 /// Launches and owns the bundled aria2c process.
+@MainActor
 final class Engine {
     private var process: Process?
     private(set) var lastError: String?
@@ -97,22 +98,30 @@ final class Engine {
         }
     }
 
-    func stop() {
+    func stop() async {
         guard let p = process, p.isRunning else { process = nil; return }
         p.terminate() // SIGTERM → aria2 saves its session, then exits
         let deadline = Date().addingTimeInterval(4)
-        while p.isRunning && Date() < deadline { usleep(50_000) }
+        while p.isRunning && Date() < deadline {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+        guard !p.isRunning else {
+            lastError = "The engine is still stopping. Please try again shortly."
+            return
+        }
         process = nil
     }
 
-    func restart() {
-        stop()
+    func restart() async {
+        await stop()
+        guard !isRunning else { return }
         start()
     }
 
     /// Clears the saved download list (used by "Reset session").
-    func resetSession() {
-        stop()
+    func resetSession() async {
+        await stop()
+        guard !isRunning else { return }
         try? Data().write(to: Self.sessionURL)
         start()
     }

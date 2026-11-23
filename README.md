@@ -4,7 +4,7 @@
 </picture>
 
 <p align="center">
-  <a href="https://github.com/shrotshahariar/swift-download-manager/releases/download/v1.0.0/Swift-DM-macOS-arm64.zip"><img src="download-macos.png" alt="Download Swift DM for macOS" width="320" height="60"></a>
+  <a href="https://github.com/shrotshahariar/swift-download-manager/releases/download/v1.1.0/Swift-DM-macOS-arm64.zip"><img src="download-macos.png" alt="Download Swift DM for macOS" width="320" height="60"></a>
 </p>
 <p align="center"><strong>macOS 14+ · Apple silicon</strong><br>Built with SwiftUI · Powered by bundled aria2</p>
 <p align="center"><a href="https://github.com/shrotshahariar/swift-download-manager/releases/latest">Release notes</a> · <a href="https://github.com/shrotshahariar/swift-download-manager/issues">Report an issue</a> · <a href="#install-on-a-mac">Installation</a></p>
@@ -17,11 +17,11 @@ Manage files, torrents, and magnet links in a native Mac app. Follow transfers, 
 
 ## Download
 
-**[Download Swift DM for macOS](https://github.com/shrotshahariar/swift-download-manager/releases/download/v1.0.0/Swift-DM-macOS-arm64.zip)** · [All releases](https://github.com/shrotshahariar/swift-download-manager/releases)
+**[Download Swift DM for macOS](https://github.com/shrotshahariar/swift-download-manager/releases/download/v1.1.0/Swift-DM-macOS-arm64.zip)** · [All releases](https://github.com/shrotshahariar/swift-download-manager/releases)
 
 | Release | Requires | Mac support |
 | --- | --- | --- |
-| Swift DM 1.0.0 | macOS 14 or later | Apple silicon |
+| Swift DM 1.1.0 | macOS 14 or later | Apple silicon |
 
 ## Install on a Mac
 
@@ -44,16 +44,23 @@ Updating? Quit the running app first, then replace the copy in Applications.
 
 Drag links, magnets, or torrent files onto the window to add them. Downloads survive quitting and relaunching. Swift DM can keep your Mac awake during transfers and notify you when they finish or fail.
 
-## Add the Chrome extension
+## Add the Chrome or Chrome Beta extension
 
-**[Download the Chrome extension](https://github.com/shrotshahariar/swift-download-manager/releases/download/v1.0.0/Swift-DM-Chrome-Extension.zip)**
+**[Download the Chrome extension](https://github.com/shrotshahariar/swift-download-manager/releases/download/v1.1.0/Swift-DM-Chrome-Extension.zip)**
 
-1. Extract the ZIP. Open `chrome://extensions` and enable **Developer mode**.
+1. Extract the ZIP. In Chrome or Chrome Beta, open `chrome://extensions` and enable **Developer mode**.
 2. Choose **Load unpacked** and select the extracted extension folder.
 3. In Swift DM, open **Settings → Browser → Copy Key**.
 4. Paste that pairing key into the extension’s popup.
 
 Chrome downloads can now go to Swift DM. You can also right-click a link and choose **Download with Swift DM**. If the app is not running, Chrome downloads normally.
+
+## What changed in 1.1.0
+
+- Fixed a layout crash when moving the app window between monitors.
+- Compact, draggable windows keep the same size across monitors and open centered on the display where you launch them. Their shared size stays below 35% of every connected display.
+- Refreshed app artwork and a properly sized 22-point menu icon.
+- More responsive engine shutdown/restarts and less repeated dashboard and polling work.
 
 ## Build it yourself
 
@@ -65,6 +72,8 @@ cd app
 ```
 
 The app is written to `app/build/Swift DM.app`. The engine is bundled in `app/vendor/aria2c`; Motrix does not need to be installed. To select another engine, pass `ARIA2=/path/to/aria2c`.
+
+Run `./test-window-sizing.sh` from `app` for the window and multi-monitor regression checks.
 
 [Read the full guide](GUIDE.md) for download options, proxies, BitTorrent settings, and dashboard controls.
 

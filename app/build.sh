@@ -22,11 +22,8 @@ swiftc -O -swift-version 5 -parse-as-library \
   -o "$APP/Contents/MacOS/SwiftDM" Sources/*.swift
 
 echo "→ Icon"
-if [[ ! -f build/AppIcon.icns ]]; then
-  python3 -I tools/make_icon.py build/AppIcon.iconset ../extension/icons
-  iconutil -c icns build/AppIcon.iconset -o build/AppIcon.icns
-fi
-cp build/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Use the versioned production icon; preserve the source artwork in Assets.
+cp Assets/AppIcon-v2.icns "$APP/Contents/Resources/AppIcon.icns"
 
 echo "→ Bundling aria2 from $ARIA2"
 cp "$ARIA2" "$APP/Contents/Resources/aria2c"
@@ -43,8 +40,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
   <key>CFBundleExecutable</key><string>SwiftDM</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0.0</string>
-  <key>CFBundleVersion</key><string>1</string>
+  <key>CFBundleShortVersionString</key><string>1.1.0</string>
+  <key>CFBundleVersion</key><string>2</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSPrincipalClass</key><string>NSApplication</string>

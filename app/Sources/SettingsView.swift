@@ -37,7 +37,7 @@ struct SettingsView: View {
                     content(t.id).tabItem { Label(t.title, systemImage: t.icon) }.tag(t.id)
                 }
             }
-            .frame(width: 560)
+            .frame(maxWidth: .infinity)
         }
     }
 
